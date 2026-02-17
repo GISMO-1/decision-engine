@@ -3,6 +3,7 @@ import type { Scenario, Projection, OneTimeItem } from "../types";
 import { uuid, currency, round2 } from "../util";
 import { projectScenario } from "../engine/projection";
 import { deleteScenario, listScenarios, loadScenario, saveScenario } from "../db";
+import { exportProjectionRowsCsv } from "./exportCsv";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 function nowISO(): string {
@@ -192,6 +193,10 @@ export default function App() {
         interestDelta: round2(projection.summary.totalInterestPaid - compareProjection.summary.totalInterestPaid)
       }
     : null;
+
+  async function onExportCsv() {
+    await exportProjectionRowsCsv(projection.rows, `${scenario.name || "projection"}-${scenario.settings.startDateISO}`);
+  }
 
   return (
     <div style={{ padding: 16, fontFamily: "system-ui, Segoe UI, Arial", maxWidth: 1200, margin: "0 auto" }}>
@@ -388,7 +393,10 @@ export default function App() {
         </section>
 
         <section style={{ border: "1px solid #ddd", borderRadius: 10, padding: 12 }}>
-          <h2 style={{ marginTop: 0 }}>Results</h2>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+            <h2 style={{ marginTop: 0, marginBottom: 0 }}>Results</h2>
+            <button onClick={onExportCsv}>Export CSV</button>
+          </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div style={{ border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
