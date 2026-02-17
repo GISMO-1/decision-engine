@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { Scenario, Projection } from "../types";
+import type { Scenario, Projection, OneTimeItem } from "../types";
 import { uuid, currency, round2 } from "../util";
 import { projectScenario } from "../engine/projection";
 import { deleteScenario, listScenarios, loadScenario, saveScenario } from "../db";
@@ -7,6 +7,13 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } f
 
 function nowISO(): string {
   return new Date().toISOString();
+}
+
+
+function monthLabel(startDateISO: string, monthIndex: number): string {
+  const [y, m] = startDateISO.split("-").map(Number);
+  const d = new Date(Date.UTC(y || 1970, (m || 1) - 1 + monthIndex, 1));
+  return d.toLocaleDateString(undefined, { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function defaultScenario(): Scenario {
@@ -26,6 +33,7 @@ function defaultScenario(): Scenario {
       { id: uuid(), name: "Food", amount: 600, type: "variable" },
       { id: uuid(), name: "Gas", amount: 200, type: "variable" }
     ],
+    oneTimeItems: [],
     debts: [
       { id: uuid(), name: "Credit Card", balance: 4500, apr: 0.2499, minPayment: 150 }
     ],
@@ -102,6 +110,20 @@ export default function App() {
         if (field === "apr") return { ...x, apr: Math.max(0, (Number(value) || 0)) };
         if (field === "minPayment") return { ...x, minPayment: Math.max(0, n) };
         return { ...x, name: value };
+      })
+    });
+  }
+
+
+  function updateOneTimeItem(idx: number, field: keyof OneTimeItem, value: string) {
+    patchScenario({
+      oneTimeItems: scenario.oneTimeItems.map((x, i) => {
+        if (i !== idx) return x;
+        if (field === "amount") return { ...x, amount: round2(Number(value) || 0) };
+        if (field === "monthIndex") return { ...x, monthIndex: Math.max(0, Math.floor(Number(value) || 0)) };
+        if (field === "kind") return { ...x, kind: value as OneTimeItem["kind"] };
+        if (field === "name") return { ...x, name: value };
+        return x;
       })
     });
   }
@@ -250,6 +272,28 @@ export default function App() {
             + Add Expense
           </button>
 
+          <h4 style={{ marginBottom: 8 }}>One-time items</h4>
+          {scenario.oneTimeItems.map((item, idx) => (
+            <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8, marginBottom: 6 }}>
+              <input value={item.name} onChange={e => updateOneTimeItem(idx, "name", e.target.value)} />
+              <input type="number" value={item.amount} onChange={e => updateOneTimeItem(idx, "amount", e.target.value)} />
+              <input type="number" min={0} value={item.monthIndex} onChange={e => updateOneTimeItem(idx, "monthIndex", e.target.value)} />
+              <select value={item.kind} onChange={e => updateOneTimeItem(idx, "kind", e.target.value)}>
+                <option value="expense">expense</option>
+                <option value="income">income</option>
+              </select>
+              <button onClick={() => patchScenario({ oneTimeItems: scenario.oneTimeItems.filter((_, i) => i !== idx) })}>✕</button>
+              <div style={{ gridColumn: "1 / span 5", fontSize: 12, opacity: 0.75 }}>
+                Month {item.monthIndex + 1}: {monthLabel(scenario.settings.startDateISO, item.monthIndex)}
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => patchScenario({ oneTimeItems: [...scenario.oneTimeItems, { id: uuid(), name: "One-time item", amount: 0, monthIndex: 0, kind: "expense" }] })}
+          >
+            + Add One-time Item
+          </button>
+
           <hr />
 
           <h3>Debts</h3>
@@ -326,6 +370,8 @@ export default function App() {
               <div><b>End Cash:</b> {currency(projection.summary.endCash)}</div>
               <div><b>End Debt:</b> {currency(projection.summary.endDebt)}</div>
               <div><b>Total Interest:</b> {currency(projection.summary.totalInterestPaid)}</div>
+              <div><b>Total One-time Income:</b> {currency(projection.summary.totalOneTimeIncome)}</div>
+              <div><b>Total One-time Expense:</b> {currency(projection.summary.totalOneTimeExpense)}</div>
               <div><b>Worst Cash:</b> {currency(projection.summary.worstCash)}</div>
               <div>
                 <b>Debt-Free:</b>{" "}

@@ -13,6 +13,8 @@ export function projectScenario(s: Scenario): Projection {
 
   const rows = [];
   let totalInterestPaid = 0;
+  let totalOneTimeIncome = 0;
+  let totalOneTimeExpense = 0;
   let debtFreeMonthIndex: number | null = null;
   let worstCash = cash;
 
@@ -25,8 +27,15 @@ export function projectScenario(s: Scenario): Projection {
     const step = stepDebtsOneMonth(debts, s.strategy);
     debts = step.debts;
 
-    const income = baseIncome;
-    const expenses = baseExpenses;
+    const oneTimeInMonth = (s.oneTimeItems ?? []).filter(item => item.monthIndex === m);
+    const oneTimeIncome = round2(oneTimeInMonth.filter(item => item.kind === "income").reduce((sum, item) => sum + item.amount, 0));
+    const oneTimeExpense = round2(oneTimeInMonth.filter(item => item.kind === "expense").reduce((sum, item) => sum + item.amount, 0));
+
+    const income = round2(baseIncome + oneTimeIncome);
+    const expenses = round2(baseExpenses + oneTimeExpense);
+
+    totalOneTimeIncome = round2(totalOneTimeIncome + oneTimeIncome);
+    totalOneTimeExpense = round2(totalOneTimeExpense + oneTimeExpense);
 
     const netChange = round2(income - expenses - step.minPaid - step.extraPaid);
     cash = round2(cash + netChange);
@@ -65,6 +74,8 @@ export function projectScenario(s: Scenario): Projection {
       endCash: rows.at(-1)?.cashEnd ?? cash,
       endDebt: rows.at(-1)?.totalDebtEnd ?? totalDebt(debts),
       totalInterestPaid,
+      totalOneTimeIncome,
+      totalOneTimeExpense,
       debtFreeMonthIndex,
       worstCash,
       firstBelowBufferMonthIndex,

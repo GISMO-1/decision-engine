@@ -21,6 +21,14 @@ export type Debt = {
   minPayment: number; // monthly
 };
 
+export type OneTimeItem = {
+  id: UUID;
+  name: string;
+  amount: number;
+  monthIndex: number; // 0-based index from scenario start month
+  kind: "income" | "expense";
+};
+
 export type Strategy = {
   method: "avalanche" | "snowball" | "custom";
   customTargetDebtId?: UUID;
@@ -39,6 +47,7 @@ export type Scenario = {
   name: string;
   incomes: Income[];
   expenses: Expense[];
+  oneTimeItems: OneTimeItem[];
   debts: Debt[];
   strategy: Strategy;
   settings: Settings;
@@ -66,6 +75,8 @@ export type Projection = {
     endCash: number;
     endDebt: number;
     totalInterestPaid: number;
+    totalOneTimeIncome: number;
+    totalOneTimeExpense: number;
     debtFreeMonthIndex: number | null;
     worstCash: number;
     firstBelowBufferMonthIndex: number | null;
