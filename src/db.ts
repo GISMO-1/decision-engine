@@ -1,6 +1,10 @@
 import Database from "@tauri-apps/plugin-sql";
 import type { Scenario } from "./types";
 
+function withScenarioDefaults(s: Scenario): Scenario {
+  return { ...s, oneTimeItems: s.oneTimeItems ?? [] };
+}
+
 let db: Database | null = null;
 
 export async function getDb(): Promise<Database> {
@@ -27,7 +31,7 @@ export async function loadScenario(id: string): Promise<Scenario | null> {
   const d = await getDb();
   const rows = await d.select<any[]>("SELECT data_json FROM scenarios WHERE id = ? LIMIT 1;", [id]);
   if (!rows.length) return null;
-  return JSON.parse(rows[0].data_json) as Scenario;
+  return withScenarioDefaults(JSON.parse(rows[0].data_json) as Scenario);
 }
 
 export async function saveScenario(s: Scenario): Promise<void> {
