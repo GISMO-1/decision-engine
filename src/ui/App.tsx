@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { Scenario, Projection, OneTimeItem } from "../types";
 import { uuid, currency, round2 } from "../util";
 import { projectScenario } from "../engine/projection";
+import { maxOneTimeExpenseWithoutBufferBreach } from "../engine/safeSpend";
 import { deleteScenario, listScenarios, loadScenario, saveScenario } from "../db";
 import { exportProjectionRowsCsv } from "./exportCsv";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -64,6 +65,9 @@ export default function App() {
   const [saved, setSaved] = useState<SavedRow[]>([]);
   const [compareId, setCompareId] = useState<string>("");
   const [compareScenario, setCompareScenario] = useState<Scenario | null>(null);
+  const [safeSpendMonthIndex, setSafeSpendMonthIndex] = useState<number>(0);
+  const [safeSpendBufferOverride, setSafeSpendBufferOverride] = useState<string>("");
+  const [safeSpendResult, setSafeSpendResult] = useState<number | null>(null);
 
   const projection: Projection = useMemo(() => projectScenario(scenario), [scenario]);
   const compareProjection: Projection | null = useMemo(
@@ -71,6 +75,14 @@ export default function App() {
     [compareScenario]
   );
   const monthCount = Math.max(1, Math.floor(Number(scenario.settings.months) || 1));
+
+  useEffect(() => {
+    setSafeSpendMonthIndex(prev => Math.max(0, Math.min(monthCount - 1, prev)));
+  }, [monthCount]);
+
+  useEffect(() => {
+    setSafeSpendResult(null);
+  }, [scenario]);
 
   useEffect(() => {
     (async () => {
@@ -196,6 +208,31 @@ export default function App() {
 
   async function onExportCsv() {
     await exportProjectionRowsCsv(projection.rows, `${scenario.name || "projection"}-${scenario.settings.startDateISO}`);
+  }
+
+  function onComputeSafeSpend() {
+    const parsedOverride = Number(safeSpendBufferOverride);
+    const bufferOverride = safeSpendBufferOverride.trim() === "" || !Number.isFinite(parsedOverride)
+      ? undefined
+      : parsedOverride;
+    const result = maxOneTimeExpenseWithoutBufferBreach(scenario, safeSpendMonthIndex, bufferOverride);
+    setSafeSpendResult(result);
+  }
+
+  function onAddSafeSpendExpense() {
+    if (safeSpendResult === null || safeSpendResult <= 0) return;
+    patchScenario({
+      oneTimeItems: [
+        ...scenario.oneTimeItems,
+        {
+          id: uuid(),
+          name: "Safe Spend Test",
+          amount: safeSpendResult,
+          monthIndex: safeSpendMonthIndex,
+          kind: "expense"
+        }
+      ]
+    });
   }
 
   return (
@@ -419,6 +456,36 @@ export default function App() {
               <div style={{ color: warnNegative ? "crimson" : "inherit" }}>{warnNegative ?? "No negative-cash months."}</div>
               <div style={{ color: warnBelowBuffer ? "darkorange" : "inherit", marginTop: 6 }}>{warnBelowBuffer ?? "Buffer never breached."}</div>
             </div>
+          </div>
+
+          <div style={{ marginTop: 10, border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
+            <div style={{ marginBottom: 8 }}><b>Safe Spend Calculator</b></div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+              <label>
+                Month
+                <select value={safeSpendMonthIndex} onChange={e => setSafeSpendMonthIndex(Number(e.target.value) || 0)}>
+                  {Array.from({ length: monthCount }, (_, monthIndex) => (
+                    <option key={monthIndex} value={monthIndex}>{monthOptionLabel(scenario.settings.startDateISO, monthIndex)}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Buffer Override (optional)
+                <input
+                  type="number"
+                  placeholder={String(scenario.settings.cashBuffer)}
+                  value={safeSpendBufferOverride}
+                  onChange={e => setSafeSpendBufferOverride(e.target.value)}
+                />
+              </label>
+              <button onClick={onComputeSafeSpend}>Compute</button>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <b>Max one-time expense:</b> {safeSpendResult === null ? "—" : currency(safeSpendResult)}
+            </div>
+            <button style={{ marginTop: 8 }} onClick={onAddSafeSpendExpense} disabled={safeSpendResult === null || safeSpendResult <= 0}>
+              Add as one-time expense
+            </button>
           </div>
 
           <div style={{ height: 320, marginTop: 14, border: "1px solid #eee", borderRadius: 10, padding: 10 }}>
