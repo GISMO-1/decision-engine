@@ -1,0 +1,21 @@
+{
+  "productName": "Decision Engine",
+  "version": "0.1.0",
+  "identifier": "com.mrburns.decisionengine",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Decision Engine",
+        "width": 1200,
+        "height": 820,
+        "resizable": true
+      }
+    ]
+  }
+}
