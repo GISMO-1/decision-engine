@@ -1,0 +1,74 @@
+import type { Projection, Scenario } from "../types";
+import { addMonthsISO, round2 } from "../util";
+import { initializeDebts, stepDebtsOneMonth, totalDebt } from "./debt";
+
+export function projectScenario(s: Scenario): Projection {
+  const months = Math.max(1, Math.min(600, s.settings.months));
+  let cash = round2(s.settings.startingCash);
+
+  const baseIncome = round2(s.incomes.reduce((sum, i) => sum + i.amount, 0));
+  const baseExpenses = round2(s.expenses.reduce((sum, e) => sum + e.amount, 0));
+
+  let debts = initializeDebts(s.debts);
+
+  const rows = [];
+  let totalInterestPaid = 0;
+  let debtFreeMonthIndex: number | null = null;
+  let worstCash = cash;
+
+  let firstBelowBufferMonthIndex: number | null = null;
+  let firstNegativeCashMonthIndex: number | null = null;
+
+  for (let m = 0; m < months; m++) {
+    const dateISO = addMonthsISO(s.settings.startDateISO, m);
+
+    const step = stepDebtsOneMonth(debts, s.strategy);
+    debts = step.debts;
+
+    const income = baseIncome;
+    const expenses = baseExpenses;
+
+    const netChange = round2(income - expenses - step.minPaid - step.extraPaid);
+    cash = round2(cash + netChange);
+
+    totalInterestPaid = round2(totalInterestPaid + step.interestPaid);
+    const debtEnd = totalDebt(debts);
+
+    if (debtFreeMonthIndex === null && debtEnd <= 0) debtFreeMonthIndex = m;
+    worstCash = Math.min(worstCash, cash);
+
+    if (firstBelowBufferMonthIndex === null && cash < s.settings.cashBuffer) {
+      firstBelowBufferMonthIndex = m;
+    }
+    if (firstNegativeCashMonthIndex === null && cash < 0) {
+      firstNegativeCashMonthIndex = m;
+    }
+
+    rows.push({
+      monthIndex: m,
+      dateISO,
+      income,
+      expenses,
+      debtMinPayments: step.minPaid,
+      debtExtraPayment: step.extraPaid,
+      interestPaid: step.interestPaid,
+      principalPaid: round2(step.principalPaid),
+      netChange,
+      cashEnd: cash,
+      totalDebtEnd: debtEnd
+    });
+  }
+
+  return {
+    rows,
+    summary: {
+      endCash: rows.at(-1)?.cashEnd ?? cash,
+      endDebt: rows.at(-1)?.totalDebtEnd ?? totalDebt(debts),
+      totalInterestPaid,
+      debtFreeMonthIndex,
+      worstCash,
+      firstBelowBufferMonthIndex,
+      firstNegativeCashMonthIndex
+    }
+  };
+}
