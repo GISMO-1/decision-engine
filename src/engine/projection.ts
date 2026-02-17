@@ -27,9 +27,18 @@ export function projectScenario(s: Scenario): Projection {
     const step = stepDebtsOneMonth(debts, s.strategy);
     debts = step.debts;
 
-    const oneTimeInMonth = (s.oneTimeItems ?? []).filter(item => item.monthIndex === m);
-    const oneTimeIncome = round2(oneTimeInMonth.filter(item => item.kind === "income").reduce((sum, item) => sum + item.amount, 0));
-    const oneTimeExpense = round2(oneTimeInMonth.filter(item => item.kind === "expense").reduce((sum, item) => sum + item.amount, 0));
+    let oneTimeIncome = 0;
+    let oneTimeExpense = 0;
+    for (const item of s.oneTimeItems ?? []) {
+      if (!Number.isFinite(item.amount) || item.amount < 0) continue;
+      if (!Number.isFinite(item.monthIndex)) continue;
+      const monthIndex = Math.floor(item.monthIndex);
+      if (monthIndex < 0 || monthIndex >= months || monthIndex !== m) continue;
+      if (item.kind === "income") oneTimeIncome += item.amount;
+      if (item.kind === "expense") oneTimeExpense += item.amount;
+    }
+    oneTimeIncome = round2(oneTimeIncome);
+    oneTimeExpense = round2(oneTimeExpense);
 
     const income = round2(baseIncome + oneTimeIncome);
     const expenses = round2(baseExpenses + oneTimeExpense);
@@ -57,7 +66,9 @@ export function projectScenario(s: Scenario): Projection {
       monthIndex: m,
       dateISO,
       income,
+      oneTimeIncome,
       expenses,
+      oneTimeExpense,
       debtMinPayments: step.minPaid,
       debtExtraPayment: step.extraPaid,
       interestPaid: step.interestPaid,

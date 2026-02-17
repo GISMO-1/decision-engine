@@ -59,7 +59,9 @@ export type MonthRow = {
   monthIndex: number;
   dateISO: string;
   income: number;
+  oneTimeIncome: number;
   expenses: number;
+  oneTimeExpense: number;
   debtMinPayments: number;
   debtExtraPayment: number;
   interestPaid: number;

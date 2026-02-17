@@ -16,6 +16,13 @@ function monthLabel(startDateISO: string, monthIndex: number): string {
   return d.toLocaleDateString(undefined, { month: "short", year: "numeric", timeZone: "UTC" });
 }
 
+function monthOptionLabel(startDateISO: string, monthIndex: number): string {
+  const [y, m] = startDateISO.split("-").map(Number);
+  const d = new Date(Date.UTC(y || 1970, (m || 1) - 1 + monthIndex, 1));
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  return `Month ${monthIndex + 1} (${d.getUTCFullYear()}-${month})`;
+}
+
 function defaultScenario(): Scenario {
   const id = uuid();
   const start = new Date();
@@ -62,6 +69,7 @@ export default function App() {
     () => (compareScenario ? projectScenario(compareScenario) : null),
     [compareScenario]
   );
+  const monthCount = Math.max(1, Math.floor(Number(scenario.settings.months) || 1));
 
   useEffect(() => {
     (async () => {
@@ -119,8 +127,15 @@ export default function App() {
     patchScenario({
       oneTimeItems: scenario.oneTimeItems.map((x, i) => {
         if (i !== idx) return x;
-        if (field === "amount") return { ...x, amount: round2(Number(value) || 0) };
-        if (field === "monthIndex") return { ...x, monthIndex: Math.max(0, Math.floor(Number(value) || 0)) };
+        if (field === "amount") {
+          const n = Number(value);
+          return { ...x, amount: Number.isFinite(n) && n >= 0 ? round2(n) : 0 };
+        }
+        if (field === "monthIndex") {
+          const n = Number(value);
+          const monthIndex = Number.isFinite(n) ? Math.floor(n) : 0;
+          return { ...x, monthIndex: Math.max(0, Math.min(monthCount - 1, monthIndex)) };
+        }
         if (field === "kind") return { ...x, kind: value as OneTimeItem["kind"] };
         if (field === "name") return { ...x, name: value };
         return x;
@@ -273,21 +288,31 @@ export default function App() {
           </button>
 
           <h4 style={{ marginBottom: 8 }}>One-time items</h4>
-          {scenario.oneTimeItems.map((item, idx) => (
-            <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8, marginBottom: 6 }}>
-              <input value={item.name} onChange={e => updateOneTimeItem(idx, "name", e.target.value)} />
-              <input type="number" value={item.amount} onChange={e => updateOneTimeItem(idx, "amount", e.target.value)} />
-              <input type="number" min={0} value={item.monthIndex} onChange={e => updateOneTimeItem(idx, "monthIndex", e.target.value)} />
-              <select value={item.kind} onChange={e => updateOneTimeItem(idx, "kind", e.target.value)}>
-                <option value="expense">expense</option>
-                <option value="income">income</option>
-              </select>
-              <button onClick={() => patchScenario({ oneTimeItems: scenario.oneTimeItems.filter((_, i) => i !== idx) })}>✕</button>
-              <div style={{ gridColumn: "1 / span 5", fontSize: 12, opacity: 0.75 }}>
-                Month {item.monthIndex + 1}: {monthLabel(scenario.settings.startDateISO, item.monthIndex)}
+          <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 8 }}>
+            One-time items apply once in the selected month.
+          </div>
+          {scenario.oneTimeItems.map((item, idx) => {
+            const clampedMonthIndex = Math.max(0, Math.min(monthCount - 1, Math.floor(Number(item.monthIndex) || 0)));
+            return (
+              <div key={item.id} style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr auto", gap: 8, marginBottom: 6 }}>
+                <input value={item.name} onChange={e => updateOneTimeItem(idx, "name", e.target.value)} />
+                <input type="number" min={0} step="0.01" value={item.amount} onChange={e => updateOneTimeItem(idx, "amount", e.target.value)} />
+                <select value={clampedMonthIndex} onChange={e => updateOneTimeItem(idx, "monthIndex", e.target.value)}>
+                  {Array.from({ length: monthCount }, (_, monthIndex) => (
+                    <option key={monthIndex} value={monthIndex}>{monthOptionLabel(scenario.settings.startDateISO, monthIndex)}</option>
+                  ))}
+                </select>
+                <select value={item.kind} onChange={e => updateOneTimeItem(idx, "kind", e.target.value)}>
+                  <option value="expense">expense</option>
+                  <option value="income">income</option>
+                </select>
+                <button onClick={() => patchScenario({ oneTimeItems: scenario.oneTimeItems.filter((_, i) => i !== idx) })}>✕</button>
+                <div style={{ gridColumn: "1 / span 5", fontSize: 12, opacity: 0.75 }}>
+                  {monthOptionLabel(scenario.settings.startDateISO, clampedMonthIndex)}: {monthLabel(scenario.settings.startDateISO, clampedMonthIndex)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <button
             onClick={() => patchScenario({ oneTimeItems: [...scenario.oneTimeItems, { id: uuid(), name: "One-time item", amount: 0, monthIndex: 0, kind: "expense" }] })}
           >
