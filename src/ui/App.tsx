@@ -426,6 +426,46 @@ export default function App() {
             </ResponsiveContainer>
           </div>
 
+          <details style={{ marginTop: 12, border: "1px solid #eee", borderRadius: 10, padding: "8px 10px" }}>
+            <summary style={{ cursor: "pointer", fontWeight: 600 }}>Monthly Table (read-only)</summary>
+            <div style={{ marginTop: 10, overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Month (YYYY-MM)</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Income (base)</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>One-time income</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Expenses (base)</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>One-time expense</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Debt min</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Debt extra</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Interest paid</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Net change</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Cash end</th>
+                    <th style={{ textAlign: "right", borderBottom: "1px solid #ddd", padding: "6px 8px" }}>Total debt end</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projection.rows.map(row => (
+                    <tr key={row.monthIndex}>
+                      <td style={{ borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{row.dateISO.slice(0, 7)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.income)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.oneTimeIncome)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.expenses)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.oneTimeExpense)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.debtMinPayments)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.debtExtraPayment)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.interestPaid)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.netChange)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.cashEnd)}</td>
+                      <td style={{ textAlign: "right", borderBottom: "1px solid #f2f2f2", padding: "6px 8px" }}>{currency(row.totalDebtEnd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
+
           <hr />
 
           <h3>Saved Scenarios</h3>
